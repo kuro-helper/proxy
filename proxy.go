@@ -3,6 +3,7 @@ package proxy
 import (
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"time"
 
@@ -14,6 +15,29 @@ var (
 	dialer proxy.Dialer
 )
 
+// 取得proxy
+//
+// 使用VPN版本
+func GetProxyDialerVPN(authUser, authPwd, proxyAddr, proxyPort string) (proxy.Dialer, error) {
+	if dialer == nil {
+		proxyAddr := fmt.Sprintf("%s:%s", proxyAddr, proxyPort)
+		auth := proxy.Auth{User: authUser, Password: authPwd}
+
+		var err error
+		dialer, err = proxy.SOCKS5("tcp", proxyAddr, &auth, &net.Dialer{
+			Timeout: 10 * time.Second,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("%w: %v", ErrCreateSOCKS5DialerFailed, err)
+		}
+		logrus.Debugf("%s Proxy已成功設置", proxyAddr)
+	}
+	return dialer, nil
+}
+
+// 取得proxy
+//
+// 私有配置版本
 func GetProxyDialer(apiURL, apiKey, proxyPort string) (proxy.Dialer, error) {
 	if dialer == nil {
 		// 1. 從 API 獲取當前 Proxy IP
@@ -36,6 +60,8 @@ func GetProxyDialer(apiURL, apiKey, proxyPort string) (proxy.Dialer, error) {
 }
 
 // 呼叫管理 API 獲取 IP
+//
+// 私有配置版本使用
 func getProxyIP(apiURL, apiKey string) (string, error) {
 	client := &http.Client{Timeout: 5 * time.Second}
 
